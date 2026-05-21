@@ -104,5 +104,25 @@ export const transactionService = (set: any, get: any) => ({
 
     get().updateTransactionStatus(id, 'MANUAL_REVIEW', 'Sent to manual review queue for human auditor check.');
     get().addAuditLog('SEND_TO_REVIEW', `Escalated transaction ${tx.referenceId} to manual review`);
+  },
+
+  createTransaction: async (merchantId: string, amount: number, paymentMethod: string) => {
+    const response = await fetch('/api/transactions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ merchantId, amount, paymentMethod })
+    });
+
+    if (!response.ok) throw new Error('Failed to create transaction');
+    const newTx = await response.json();
+
+    set((state: any) => ({
+      transactions: [newTx, ...state.transactions].slice(0, 100)
+    }));
+
+    get().addAuditLog('CREATE_TRANSACTION', `Created simulated transaction ${newTx.referenceId} for amount IDR ${amount}`);
+    get().updateMetrics();
+
+    return newTx;
   }
 });

@@ -38,6 +38,7 @@ interface StoreState {
   forceCompleteTransaction: (id: string) => void;
   forceFailTransaction: (id: string) => void;
   sendToManualReview: (id: string) => void;
+  createTransaction: (merchantId: string, amount: number, paymentMethod: string) => Promise<Transaction>;
 
   // Merchants State
   merchants: Merchant[];

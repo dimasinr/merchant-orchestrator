@@ -1,0 +1,17 @@
+<!-- Step 1: Inject Orchestrator QRIS SDK Script -->
+<script src="http://localhost:3000/qris.js" data-merchant-id="mer-001" data-env="sandbox"></script>
+
+<script>
+    // Step 2: Initialize & Trigger QRIS Payment Flow
+    QrisPay.createPayment({
+        amount: 150000,
+        referenceId: "DUMMY-REF-001",
+        customerName: "Budi Santoso",
+        customerEmail: "budi@email.com"
+    }).then(payment => {
+        // Shows the floating QRIS popup screen dynamically
+        QrisPay.showPaymentUI(payment.qrCodeData);
+    }).catch(error => {
+        console.error("Payment generation aborted:", error);
+    });
+</script>

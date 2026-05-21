@@ -13,7 +13,8 @@ import {
   Settings,
   Activity,
   LogOut,
-  QrCode
+  QrCode,
+  Terminal
 } from 'lucide-react';
 
 export function Sidebar() {
@@ -69,6 +70,19 @@ export function Sidebar() {
         >
           <LayoutDashboard size={15} className={pathname === '/dashboard' ? 'text-indigo-600' : 'opacity-70'} />
           <span>Dashboard</span>
+        </Link>
+
+        {/* Playground / Simulator */}
+        <Link
+          href="/dashboard/simulator"
+          className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
+            pathname === '/dashboard/simulator'
+              ? 'bg-indigo-50/60 text-indigo-700 border-l-2 border-indigo-600 pl-2.5 font-bold shadow-3xs'
+              : 'hover:bg-zinc-50 hover:text-zinc-900 text-zinc-500 font-semibold'
+          }`}
+        >
+          <Terminal size={15} className={pathname === '/dashboard/simulator' ? 'text-indigo-600' : 'opacity-70'} />
+          <span>SDK Playground</span>
         </Link>
 
         {/* Transactions Group title */}
