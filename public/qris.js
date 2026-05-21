@@ -6,6 +6,9 @@
     merchantId: 'mer-001',
     env: 'sandbox',
 
+    // Local dummy transaction store for simulation when API is unavailable
+    _dummyTransactions: {},
+
     init: function() {
       // Find script tag to extract parameters
       const scripts = document.getElementsByTagName('script');
@@ -19,9 +22,54 @@
       }
     },
 
+    // Generate a unique transaction ID for dummy mode
+    _generateId: function() {
+      return 'tx-' + Math.floor(Math.random() * 90000 + 10000);
+    },
+
+    // Generate a realistic QRIS-style reference ID
+    _generateQrisRef: function(amount) {
+      var ts = Date.now().toString(36).toUpperCase();
+      var rand = Math.random().toString(36).substring(2, 10).toUpperCase();
+      return 'QRIS-' + this.merchantId.toUpperCase() + '-' + ts + rand + '-AMT' + (amount || 0);
+    },
+
+    // Create a dummy transaction object for simulation
+    _createDummyTransaction: function(config) {
+      var txId = this._generateId();
+      var refId = config.referenceId || this._generateQrisRef(config.amount);
+      var nowStr = new Date().toISOString();
+
+      var dummyTx = {
+        id: txId,
+        referenceId: refId,
+        amount: Number(config.amount) || 10000,
+        currency: 'IDR',
+        status: 'AWAITING_PAYMENT',
+        merchantId: this.merchantId,
+        merchantName: config.merchantName || 'Demo Merchant (Dummy SDK)',
+        paymentMethod: 'QRIS',
+        customerName: config.customerName || 'SDK Customer',
+        customerEmail: config.customerEmail || 'sdk@customer.io',
+        createdAt: nowStr,
+        updatedAt: nowStr,
+        errorMessage: null,
+        retryCount: 0,
+        maxRetries: 3,
+        history: [{ status: 'AWAITING_PAYMENT', timestamp: nowStr, message: 'Dummy transaction created via SDK fallback' }],
+        logs: [{ timestamp: nowStr, severity: 'info', message: 'Transaction created in dummy mode (no API)', component: 'QRIS_SDK', traceId: 'tr-' + txId.substring(3) }]
+      };
+
+      // Store locally so we can retrieve it later
+      this._dummyTransactions[txId] = dummyTx;
+      console.info('[QrisPay SDK] Dummy transaction created:', txId, '| Amount:', dummyTx.amount, '| Ref:', refId);
+      return dummyTx;
+    },
+
     createPayment: function(config) {
-      return new Promise((resolve, reject) => {
-        fetch(`${GATEWAY_URL}/api/transactions`, {
+      var self = this;
+      return new Promise(function(resolve, reject) {
+        fetch(GATEWAY_URL + '/api/transactions', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -31,16 +79,16 @@
             referenceId: config.referenceId,
             customerName: config.customerName || 'SDK Customer',
             customerEmail: config.customerEmail || 'sdk@customer.io',
-            merchantId: this.merchantId
+            merchantId: self.merchantId
           })
         })
-        .then(response => {
+        .then(function(response) {
           if (!response.ok) {
             throw new Error('Failed to create payment session from orchestrator gateway');
           }
           return response.json();
         })
-        .then(data => {
+        .then(function(data) {
           // Resolve with payment object where qrCodeData points to transaction ID
           resolve({
             id: data.id,
@@ -49,9 +97,17 @@
             referenceId: data.referenceId
           });
         })
-        .catch(err => {
-          console.error('[QrisPay SDK] payment initialization failed', err);
-          reject(err);
+        .catch(function(err) {
+          console.warn('[QrisPay SDK] API unavailable, falling back to dummy transaction mode.', err.message);
+          // Fallback: generate a dummy transaction locally for simulation
+          var dummy = self._createDummyTransaction(config);
+          resolve({
+            id: dummy.id,
+            qrCodeData: dummy.id,
+            amount: dummy.amount,
+            referenceId: dummy.referenceId,
+            _isDummy: true // flag so integrators can detect dummy mode
+          });
         });
       });
     },
