@@ -1,22 +1,100 @@
-import { Role } from '@/types';
+import { ApiError } from '@/lib/api-client';
+import {
+  clearAuth,
+  getStoredAccountType,
+  getStoredToken,
+  getStoredUser,
+  persistAuth
+} from '@/lib/auth-storage';
+import { mapApiRoleToAppRole } from '@/lib/permissions';
+import { authApi } from '@/services/authApi';
+import type { AccountType, User } from '@/types';
 
 export const settingsService = (set: any, get: any) => ({
-  login: async (email: string, role: Role, name?: string) => {
-    set({
-      user: {
-        id: `usr-${Math.floor(Math.random() * 900) + 100}`,
-        name: name || email.split('@')[0].toUpperCase(),
-        email,
-        role
-      },
-      token: 'mock-jwt-token-xyz-' + Date.now(),
-      isAuthenticated: true
-    });
-    get().addAuditLog('USER_LOGIN', `User ${email} successfully logged in as ${role}`);
-    return true;
+  accountType: null as AccountType | null,
+  authReady: false,
+  authError: null as string | null,
+
+  hydrateAuth: () => {
+    if (typeof window === 'undefined') return;
+    const token = getStoredToken();
+    const user = getStoredUser();
+    const accountType = getStoredAccountType();
+
+    if (token && user && accountType) {
+      set({ user, token, accountType, isAuthenticated: true, authReady: true });
+      get().refreshTransactions().catch(() => undefined);
+    } else {
+      set({ authReady: true });
+    }
+  },
+
+  loginAdmin: async (email: string, password: string) => {
+    set({ authError: null });
+    try {
+      const response = await authApi.adminLogin(email, password);
+      const user: User = {
+        id: response.user.id,
+        name: response.user.full_name,
+        email: response.user.email,
+        role: mapApiRoleToAppRole(response.user.role, 'admin')
+      };
+      persistAuth(response.token, user, 'admin');
+      set({
+        user,
+        token: response.token,
+        accountType: 'admin' as AccountType,
+        isAuthenticated: true,
+        authError: null
+      });
+      await get().refreshTransactions();
+      get().addAuditLog('USER_LOGIN', `Admin ${email} signed in`);
+      return true;
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Login failed';
+      set({ authError: message });
+      return false;
+    }
+  },
+
+  loginMerchant: async (email: string, password: string) => {
+    set({ authError: null });
+    try {
+      const response = await authApi.merchantLogin(email, password);
+      const user: User = {
+        id: response.user.id,
+        name: response.user.full_name,
+        email: response.user.email,
+        role: mapApiRoleToAppRole(response.user.role, 'merchant'),
+        merchantId: response.merchant.id,
+        merchantName: response.merchant.name
+      };
+      persistAuth(response.token, user, 'merchant');
+      set({
+        user,
+        token: response.token,
+        accountType: 'merchant' as AccountType,
+        isAuthenticated: true,
+        authError: null
+      });
+      await get().refreshTransactions();
+      return true;
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Login failed';
+      set({ authError: message });
+      return false;
+    }
   },
 
   logout: () => {
-    set({ user: null, token: null, isAuthenticated: false });
+    clearAuth();
+    set({
+      user: null,
+      token: null,
+      accountType: null,
+      isAuthenticated: false,
+      transactions: [],
+      authError: null
+    });
   }
 });

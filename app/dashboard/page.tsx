@@ -20,7 +20,10 @@ import {
 import Link from 'next/link';
 
 export default function DashboardOverview() {
-  const { transactions, metrics, workers } = useStore();
+  const { transactions, metrics, workers, refreshTransactions } = useStore();
+  React.useEffect(() => {
+    refreshTransactions();
+  }, [refreshTransactions]);
   const [copied, setCopied] = React.useState(false);
 
   const sdkCode = `<!-- Step 1: Inject Orchestrator QRIS SDK Script -->

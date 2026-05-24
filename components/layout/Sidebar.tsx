@@ -180,7 +180,10 @@ export function Sidebar() {
       {/* Logout Footer */}
       <div className="p-4 border-t border-zinc-150 bg-zinc-50/40">
         <button
-          onClick={logout}
+          onClick={() => {
+            logout();
+            window.location.href = '/';
+          }}
           className="w-full flex items-center justify-center gap-2 py-2 px-4 rounded-lg bg-white hover:bg-rose-50 hover:text-rose-600 text-zinc-500 border border-zinc-200 hover:border-rose-100 transition-all text-xs font-bold cursor-pointer shadow-3xs"
         >
           <LogOut size={14} />

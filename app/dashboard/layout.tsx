@@ -8,14 +8,19 @@ import { Radio, Wifi, WifiOff, RefreshCw } from 'lucide-react';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const { user, isAuthenticated, realtimeEnabled, setRealtimeEnabled, simulateStep } = useStore();
+  const { user, isAuthenticated, authReady, accountType, realtimeEnabled, setRealtimeEnabled, simulateStep } =
+    useStore();
 
-  // Route protection - Client Side
   useEffect(() => {
+    if (!authReady) return;
     if (!isAuthenticated) {
       router.push('/');
+      return;
     }
-  }, [isAuthenticated, router]);
+    if (accountType === 'merchant') {
+      router.push('/merchant');
+    }
+  }, [authReady, isAuthenticated, accountType, router]);
 
   // Real-time Event Simulation loop (WebSocket emulation)
   useEffect(() => {
@@ -28,7 +33,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return () => clearInterval(interval);
   }, [realtimeEnabled, isAuthenticated, simulateStep]);
 
-  if (!isAuthenticated || !user) {
+  if (!authReady || !isAuthenticated || !user || accountType !== 'admin') {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-zinc-50 text-zinc-600 select-none">
         <div className="flex flex-col items-center gap-3">
