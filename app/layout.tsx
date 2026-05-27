@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "QRIS Payment Orchestrator",
+  title: "Cashin Payment Orchestrator",
   description: "Merchant orchestrator control console",
 };
 

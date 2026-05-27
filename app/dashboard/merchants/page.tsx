@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useStore } from '@/store';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { DataTable } from '@/components/ui/DataTable';
@@ -20,7 +20,15 @@ import {
 } from 'lucide-react';
 
 export default function MerchantRegistryPage() {
-  const { merchants, user, updateMerchantStatus, updateMerchantConfig } = useStore();
+  const { merchants, user, updateMerchantStatus, updateMerchantConfig, createMerchant, fetchMerchants } = useStore();
+  
+  useEffect(() => {
+    fetchMerchants();
+  }, [fetchMerchants]);
+  
+  const [isCreating, setIsCreating] = useState(false);
+  const [newMerchantName, setNewMerchantName] = useState('');
+  const [newAdapterType, setNewAdapterType] = useState<AdapterType>('REST_API');
 
   const [dialogConfig, setDialogConfig] = useState<{
     isOpen: boolean;
@@ -158,7 +166,7 @@ export default function MerchantRegistryPage() {
             <span className="font-extrabold text-zinc-900 text-xs select-all">{row.original.name}</span>
             <span className="text-[10px] text-zinc-400 font-semibold font-mono flex items-center gap-1 mt-0.5">
               <Mail size={10} className="text-zinc-400" />
-              {row.original.email}
+              {row.original.id}
             </span>
           </div>
         )
@@ -265,12 +273,17 @@ export default function MerchantRegistryPage() {
   return (
     <div className="space-y-6 text-zinc-650">
       <PageHeader
-        title="Merchant Gateway Registry"
+        title="Merchant Management"
         description="Monitor status, traffic rates, success analytics, and system adapters of active merchant connections."
       >
         <button
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white shadow-md shadow-indigo-600/10 hover:shadow-indigo-600/20 transition-all cursor-pointer"
-          onClick={() => alert('Add Merchant function would trigger in production. Try configuring existing adapters!')}
+          onClick={() => {
+            setIsCreating(true);
+            setNewMerchantName('');
+            setNewAdapterType('REST_API');
+            setErrorMsg('');
+          }}
         >
           <Plus size={14} />
           <span>Register Merchant</span>
@@ -278,6 +291,106 @@ export default function MerchantRegistryPage() {
       </PageHeader>
 
       <DataTable columns={columns} data={merchants} searchKey="name" searchPlaceholder="Search merchants by name..." />
+
+      {/* MODAL CREATE MERCHANT */}
+      {isCreating && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="relative w-full max-w-md bg-white border border-zinc-200 rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200 text-zinc-600">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-150 bg-zinc-50/50">
+              <div className="space-y-0.5">
+                <h3 className="text-sm font-bold text-zinc-900 uppercase tracking-wider">Register Merchant</h3>
+                <p className="text-[10px] text-zinc-400 font-semibold uppercase">Add a new integration adapter</p>
+              </div>
+              <button
+                onClick={() => setIsCreating(false)}
+                className="p-1 rounded-lg hover:bg-zinc-100 text-zinc-500 hover:text-zinc-900 transition-all cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {errorMsg && (
+              <div className="px-6 pt-4">
+                <div className="bg-rose-50 border border-rose-100 text-rose-700 p-3 rounded-lg text-xs font-semibold flex items-center gap-2">
+                  <AlertCircle size={14} />
+                  <span>{errorMsg}</span>
+                </div>
+              </div>
+            )}
+
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                setErrorMsg('');
+                const success = await createMerchant(newMerchantName, newAdapterType);
+                if (success) {
+                  setIsCreating(false);
+                } else {
+                  setErrorMsg('Failed to create merchant. Please try again.');
+                }
+              }}
+              className="p-6 space-y-4"
+            >
+              <div className="space-y-1">
+                <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-wide block">Merchant Name</label>
+                <input
+                  type="text"
+                  required
+                  value={newMerchantName}
+                  onChange={(e) => setNewMerchantName(e.target.value)}
+                  className="w-full px-3 py-1.5 rounded-lg border border-zinc-200 bg-white text-xs text-zinc-800 focus:outline-none focus:border-indigo-500 font-semibold"
+                  placeholder="e.g. Tokopedia E-Commerce"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wide block">Initial Adapter Protocol</span>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setNewAdapterType('REST_API')}
+                    className={`flex-1 py-2 px-3 rounded-lg border text-xs font-bold transition-all text-center cursor-pointer ${
+                      newAdapterType === 'REST_API'
+                        ? 'bg-indigo-50 border-indigo-500 text-indigo-700'
+                        : 'bg-zinc-50 border-zinc-200 text-zinc-400 hover:border-zinc-300'
+                    }`}
+                  >
+                    REST API
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNewAdapterType('UI_AUTOMATION')}
+                    className={`flex-1 py-2 px-3 rounded-lg border text-xs font-bold transition-all text-center cursor-pointer ${
+                      newAdapterType === 'UI_AUTOMATION'
+                        ? 'bg-indigo-50 border-indigo-500 text-indigo-700'
+                        : 'bg-zinc-50 border-zinc-200 text-zinc-400 hover:border-zinc-300'
+                    }`}
+                  >
+                    UI Scraper Bot
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2.5 pt-4 border-t border-zinc-150">
+                <button
+                  type="button"
+                  onClick={() => setIsCreating(false)}
+                  className="px-4 py-2 rounded-lg bg-white border border-zinc-200 text-zinc-500 hover:text-zinc-800 text-xs font-bold transition-all cursor-pointer shadow-3xs"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs font-bold text-white shadow-md shadow-indigo-600/10 transition-all cursor-pointer"
+                >
+                  <Plus size={13} />
+                  <span>Register</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* MODAL EDIT CONFIG */}
       {editingMerchant && (

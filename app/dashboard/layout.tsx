@@ -53,8 +53,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         {/* TOP STATUS BAR */}
         <header className="h-16 border-b border-zinc-200 bg-white px-8 flex items-center justify-between shrink-0 select-none">
-          <div className="flex items-center gap-3">
-            {/* Real-time Status Badge */}
+          {/* <div className="flex items-center gap-3">
             <span
               className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${
                 realtimeEnabled
@@ -66,18 +65,32 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <span>Real-time Stream: {realtimeEnabled ? 'LIVE' : 'PAUSED'}</span>
             </span>
 
-            {/* Sim Mode toggle */}
             <button
               onClick={() => setRealtimeEnabled(!realtimeEnabled)}
               className="text-[10px] font-bold text-zinc-600 hover:text-zinc-900 px-2.5 py-1 rounded bg-white border border-zinc-200 hover:bg-zinc-50 hover:border-zinc-300 transition-all uppercase tracking-wide cursor-pointer shadow-3xs"
             >
               {realtimeEnabled ? 'Pause Socket' : 'Resume Socket'}
             </button>
-          </div>
+          </div> */}
 
-          <div className="flex items-center gap-4">
-            {/* WebSocket connection status */}
-            <div className="flex items-center gap-1.5 text-xs font-semibold text-zinc-500">
+          <div></div>
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-3">
+              <div className="flex flex-col items-end">
+                <span className="text-sm font-bold text-zinc-900 leading-none">{user.name}</span>
+                {/* <span className="text-[10px] font-semibold text-zinc-500">{user.email}</span> */}
+                <span className="inline-block px-1.5 py-0.5 text-[8px] font-extrabold bg-indigo-50 text-indigo-700 border border-indigo-100 rounded-sm mt-1 uppercase tracking-wide">
+                  {user.role.replace('_', ' ')}
+                </span>
+              </div>
+              <div className="w-10 h-10 rounded-full bg-zinc-100 border border-zinc-200 flex items-center justify-center font-bold text-zinc-700 shadow-sm">
+                {user.name.substring(0, 2).toUpperCase()}
+              </div>
+            </div>
+
+            {/* <div className="h-8 w-px bg-zinc-200"></div> */}
+
+            {/* <div className="flex items-center gap-1.5 text-xs font-semibold text-zinc-500">
               {realtimeEnabled ? (
                 <>
                   <Wifi size={14} className="text-indigo-500" />
@@ -89,13 +102,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   <span className="text-zinc-400 font-medium">WS Core: Disconnected</span>
                 </>
               )}
-            </div>
-
-            {/* System Health */}
-            <div className="flex items-center gap-2 border-l border-zinc-200 pl-4">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-xs shadow-emerald-500/30" />
-              <span className="text-xs font-bold text-zinc-800 uppercase tracking-wider">Gateway OK</span>
-            </div>
+            </div> */}
           </div>
         </header>
 

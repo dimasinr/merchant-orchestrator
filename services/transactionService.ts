@@ -106,28 +106,10 @@ export const transactionService = (set: any, get: any) => ({
     return true;
   },
 
-  updateTransactionStatus: (id: string, status: TransactionStatus, message?: string) => {
-    set((state: any) => {
-      const txs = state.transactions.map((t: any) => {
-        if (t.id === id || t.referenceId === id) {
-          const nowStr = new Date().toISOString();
-          const newHistory = [
-            ...t.history,
-            { status, timestamp: nowStr, message: message || `Updated to ${status}` }
-          ];
-          return {
-            ...t,
-            status,
-            updatedAt: nowStr,
-            errorMessage: message || null,
-            history: newHistory
-          };
-        }
-        return t;
-      });
-      return { transactions: txs };
-    });
-    get().updateMetrics();
+  updateTransactionStatus: async (id: string, status: TransactionStatus, message?: string) => {
+    // Cannot manually update status via frontend store anymore because truth comes from backend.
+    // So we fetch it instead.
+    await get().fetchTransactionByReference(id);
   },
 
   retryTransaction: async (referenceId: string) => {
@@ -150,22 +132,6 @@ export const transactionService = (set: any, get: any) => ({
   },
 
   createTransaction: async (merchantId: string, amount: number, paymentMethod: string) => {
-    const response = await fetch('/api/transactions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ merchantId, amount, paymentMethod })
-    });
-
-    if (!response.ok) throw new Error('Failed to create transaction');
-    const newTx = await response.json();
-
-    set((state: any) => ({
-      transactions: [newTx, ...state.transactions].slice(0, 100)
-    }));
-
-    get().addAuditLog('CREATE_TRANSACTION', `Created simulated transaction ${newTx.referenceId} for amount IDR ${amount}`);
-    get().updateMetrics();
-
-    return newTx;
+    throw new Error('Simulation of transaction creation is disabled in API mode.');
   }
 });

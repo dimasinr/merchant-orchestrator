@@ -70,7 +70,7 @@ export default function DashboardOverview() {
       />
 
       {/* STAT CARDS ROW */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      {/* <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <StatCard
           title="Overall Success Rate"
           value={`${metrics.successRate24h}%`}
@@ -98,7 +98,7 @@ export default function DashboardOverview() {
           icon={Database}
           description="Total processed QRIS volume"
         />
-      </div>
+      </div> */}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Col: SDK Script Inject Guide */}

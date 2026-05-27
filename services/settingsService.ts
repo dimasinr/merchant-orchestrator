@@ -26,6 +26,8 @@ export const settingsService = (set: any, get: any) => ({
       get().refreshTransactions().catch(() => undefined);
     } else {
       set({ authReady: true });
+      // Fetch merchants after authentication is established
+      get().fetchMerchants().catch(() => undefined);
     }
   },
 
@@ -49,6 +51,8 @@ export const settingsService = (set: any, get: any) => ({
       });
       await get().refreshTransactions();
       get().addAuditLog('USER_LOGIN', `Admin ${email} signed in`);
+      // Load merchants after authentication
+      get().fetchMerchants().catch(() => undefined);
       return true;
     } catch (err) {
       const message = err instanceof ApiError ? err.message : 'Login failed';
