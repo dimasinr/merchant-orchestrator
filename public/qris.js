@@ -12,13 +12,21 @@
     init: function() {
       // Find script tag to extract parameters
       const scripts = document.getElementsByTagName('script');
+      let targetScript = null;
       for (let i = 0; i < scripts.length; i++) {
         const s = scripts[i];
-        if (s.src && s.src.includes('/qris.js')) {
+        if (s.src && (s.src.includes('/qris.js') || s.src.includes('/c-qris.js'))) {
           this.merchantId = s.getAttribute('data-merchant-id') || 'mer-001';
           this.env = s.getAttribute('data-env') || 'sandbox';
+          targetScript = s;
           break;
         }
+      }
+
+      // Automatically render the payment widget where the script is located
+      // unless data-auto-render="false" is explicitly set.
+      if (targetScript && targetScript.getAttribute('data-auto-render') !== 'false') {
+        this.renderWidget(targetScript);
       }
     },
 
@@ -155,7 +163,7 @@
         border: 1px solid #27272a;
         box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
         display: flex;
-        flex-direction: col;
+        flex-direction: column;
         overflow: hidden;
         transform: translateY(20px);
         transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
@@ -273,6 +281,158 @@
           rootDiv.parentNode.removeChild(rootDiv);
         }
       }, 250);
+    },
+
+    renderWidget: function(targetScript) {
+      if (!targetScript) return;
+
+      // Create a container div — uses inherit to adapt to host site theme
+      const container = document.createElement('div');
+      container.id = 'qris-payment-widget-container';
+      container.style.cssText = `
+        width: 100%;
+        max-width: 400px;
+        background-color: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 20px;
+        font-family: inherit;
+        color: #111827;
+        margin: 16px auto;
+        box-sizing: border-box;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      `;
+
+      // Insert container after script tag
+      targetScript.parentNode.insertBefore(container, targetScript.nextSibling);
+
+      // Render the form — simple, clean, theme-adaptive
+      container.innerHTML = `
+        <div style="display: flex; flex-direction: column; gap: 16px;">
+          <!-- Header -->
+          <div style="display: flex; align-items: center; gap: 10px; margin-top: 20px;">
+            <span style="font-size: 14px; font-weight: 700;">QRIS Payment</span>
+          </div>
+
+          <!-- Error Alert (Hidden by default) -->
+          <div id="qris-widget-error" style="display: none; border: 1px solid #ef4444; border-radius: 8px; padding: 8px 12px; font-size: 12px; color: #ef4444; font-weight: 600; align-items: center; gap: 6px;">
+            <span id="qris-widget-error-text"></span>
+          </div>
+
+          <!-- Name -->
+          <div style="display: flex; gap: 4px;">
+            <input type="text" id="qris-widget-name" required placeholder="username" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid #d1d5db; background: #f9fafb; color: #111827; font-size: 14px; font-family: inherit; box-sizing: border-box; outline: none;" />
+          </div>
+
+          <!-- Amount -->
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <div style="position: relative;">
+              <span style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: 14px; font-weight: 600; opacity: 0.5;">Rp</span>
+              <input type="text" id="qris-widget-amount" required placeholder="150.000" style="width: 100%; padding: 10px 12px 10px 36px; border-radius: 8px; border: 1px solid #d1d5db; background: #f9fafb; color: #111827; font-size: 14px; font-weight: 600; font-family: inherit; box-sizing: border-box; outline: none;" />
+            </div>
+            <label style="font-size: 10px; font-weight: 600; opacity: 0.6; text-align: left;">Nominal (Rp 20.000 – 9.999.999)</label>
+          </div>
+
+          <!-- Preset amounts -->
+          <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+            <button type="button" class="qris-preset-btn" data-val="50000" style="padding: 5px 10px; border-radius: 6px; border: 1px solid #d1d5db; background: #f3f4f6; color: #374151; font-size: 11px; font-weight: 600; cursor: pointer; font-family: inherit;">50rb</button>
+            <button type="button" class="qris-preset-btn" data-val="100000" style="padding: 5px 10px; border-radius: 6px; border: 1px solid #d1d5db; background: #f3f4f6; color: #374151; font-size: 11px; font-weight: 600; cursor: pointer; font-family: inherit;">100rb</button>
+            <button type="button" class="qris-preset-btn" data-val="250000" style="padding: 5px 10px; border-radius: 6px; border: 1px solid #d1d5db; background: #f3f4f6; color: #374151; font-size: 11px; font-weight: 600; cursor: pointer; font-family: inherit;">250rb</button>
+            <button type="button" class="qris-preset-btn" data-val="500000" style="padding: 5px 10px; border-radius: 6px; border: 1px solid #d1d5db; background: #f3f4f6; color: #374151; font-size: 11px; font-weight: 600; cursor: pointer; font-family: inherit;">500rb</button>
+            <button type="button" class="qris-preset-btn" data-val="1000000" style="padding: 5px 10px; border-radius: 6px; border: 1px solid #d1d5db; background: #f3f4f6; color: #374151; font-size: 11px; font-weight: 600; cursor: pointer; font-family: inherit;">1jt</button>
+          </div>
+
+          <!-- Generate Button -->
+          <button type="button" id="qris-widget-submit" style="width: 100%; padding: 12px; border-radius: 8px; border: none; background-color: #4f46e5; color: #fff; font-size: 14px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; font-family: inherit; transition: opacity 0.2s;">
+            Generate QRIS
+          </button>
+
+          <!-- Footer -->
+          <div style="text-align: center; font-size: 10px; opacity: 0.35; font-weight: 600;">Secured by Cashin Orchestrator</div>
+        </div>
+      `;
+
+      // Get elements
+      const nameInput = document.getElementById('qris-widget-name');
+      const amountInput = document.getElementById('qris-widget-amount');
+      const submitBtn = document.getElementById('qris-widget-submit');
+      const errorBanner = document.getElementById('qris-widget-error');
+      const errorText = document.getElementById('qris-widget-error-text');
+
+      // Amount Input Formatting as Rupiah
+      amountInput.oninput = (e) => {
+        let value = e.target.value.replace(/\D/g, '');
+        if (value) {
+          e.target.value = new Intl.NumberFormat('id-ID').format(value);
+        } else {
+          e.target.value = '';
+        }
+      };
+
+      const presetBtns = container.querySelectorAll('.qris-preset-btn');
+      presetBtns.forEach(btn => {
+        btn.onclick = () => {
+          const val = btn.getAttribute('data-val');
+          amountInput.value = new Intl.NumberFormat('id-ID').format(val);
+          presetBtns.forEach(b => { b.style.background = '#f3f4f6'; b.style.borderColor = '#d1d5db'; b.style.color = '#374151'; });
+          btn.style.background = '#ede9fe';
+          btn.style.borderColor = '#4f46e5';
+          btn.style.color = '#4f46e5';
+        };
+      });
+
+      // Submit handler
+      submitBtn.onclick = () => {
+        const nameVal = nameInput.value.trim();
+        const rawAmount = amountInput.value.replace(/\D/g, '');
+        const amountVal = Number(rawAmount);
+
+        errorBanner.style.display = 'none';
+
+        if (!nameVal) { showError('Nama wajib diisi'); return; }
+        if (!amountVal) { showError('Nominal wajib diisi'); return; }
+        if (amountVal < 20000 || amountVal > 9999999) { showError('Nominal harus antara Rp 20.000 - Rp 9.999.999'); return; }
+
+        submitBtn.disabled = true;
+        submitBtn.style.opacity = '0.6';
+        submitBtn.textContent = 'Memproses...';
+
+        this.createPayment({
+          amount: amountVal,
+          referenceId: 'REF-' + Date.now() + '-' + Math.floor(1000 + Math.random() * 9000),
+          customerName: nameVal,
+          customerEmail: 'customer@qris.pay'
+        })
+        .then(payment => {
+          submitBtn.disabled = false;
+          submitBtn.style.opacity = '1';
+          submitBtn.textContent = 'Generate QRIS';
+          this.showPaymentUI(payment.qrCodeData);
+        })
+        .catch(err => {
+          submitBtn.disabled = false;
+          submitBtn.style.opacity = '1';
+          submitBtn.textContent = 'Generate QRIS';
+          showError('Gagal membuat pembayaran: ' + err.message);
+        });
+      };
+
+      function showError(msg) {
+        errorBanner.style.display = 'flex';
+        errorText.innerText = msg;
+      }
+
+      // Keyframes for loading animation
+      if (!document.getElementById('qris-widget-keyframes')) {
+        const styleEl = document.createElement('style');
+        styleEl.id = 'qris-widget-keyframes';
+        styleEl.innerHTML = `
+          @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+          .qris-preset-btn:hover { background: #ede9fe !important; border-color: #4f46e5 !important; color: #4f46e5 !important; }
+          #qris-widget-submit:hover { opacity: 0.85; }
+        `;
+        document.head.appendChild(styleEl);
+      }
     }
   };
 

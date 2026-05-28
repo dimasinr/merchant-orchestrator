@@ -50,7 +50,8 @@ interface StoreState {
   fetchMerchants: () => Promise<void>;
   updateMerchantConfig: (id: string, adapterType: AdapterType, config: any) => void;
   updateMerchantStatus: (id: string, status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED') => void;
-  createMerchant: (name: string, adapterType: AdapterType) => Promise<boolean>;
+  createMerchant: (name: string, adapterType: AdapterType, requestData?: any) => Promise<boolean>;
+  deleteMerchant: (id: string) => Promise<boolean>;
 
   // Workers State
   workers: Worker[];

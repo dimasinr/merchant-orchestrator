@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Reuse server-side in-memory mock database
 const globalForTransactions = global as unknown as {
   serverTransactions: any[];
 };

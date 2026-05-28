@@ -35,19 +35,18 @@ export const merchantService = (set: any, get: any) => ({
     }
   },
 
-  updateMerchantConfig: async (id: string, adapterType: AdapterType, config: any) => {
+  updateMerchantConfig: async (id: string, _adapterType: AdapterType, config: any) => {
     const { token } = get();
     if (!token) return false;
 
     try {
-      // Find current merchant to get name
-      const current = get().merchants.find((m: Merchant) => m.id === id);
       const data: MerchantCreateRequest = {
-        merchant_id: id,
-        merchant_name: current?.name || 'Unknown',
-        adapter_type: adapterType,
-        pull_config: adapterType === 'UI_AUTOMATION' ? JSON.stringify(config) : '{}',
-        push_config: adapterType === 'REST_API' ? JSON.stringify(config) : '{}',
+        merchant_id: config.merchant_id || id,
+        merchant_name: config.merchant_name || 'Unknown',
+        adapter_type: config.adapter_type || _adapterType,
+        credentials: config.credentials || '',
+        pull_config: config.pull_config || '{}',
+        push_config: config.push_config || '{}',
       };
       await merchantApi.update(token, id, data);
       await get().fetchMerchants();
@@ -65,15 +64,23 @@ export const merchantService = (set: any, get: any) => ({
     console.warn('updateMerchantStatus: Not fully supported by current API');
   },
 
-  createMerchant: async (name: string, adapterType: AdapterType) => {
+  createMerchant: async (_name: string, _adapterType: AdapterType, requestData?: any) => {
     const { token } = get();
     if (!token) return false;
 
     try {
-      const data: MerchantCreateRequest = {
+      const data: MerchantCreateRequest = requestData ? {
+        merchant_id: requestData.merchant_id || `mer-${Date.now()}`,
+        merchant_name: requestData.merchant_name || _name,
+        adapter_type: requestData.adapter_type || _adapterType,
+        credentials: requestData.credentials || '',
+        pull_config: requestData.pull_config || '{}',
+        push_config: requestData.push_config || '{}'
+      } : {
         merchant_id: `mer-${Date.now()}`,
-        merchant_name: name,
-        adapter_type: adapterType,
+        merchant_name: _name,
+        adapter_type: _adapterType,
+        credentials: '',
         pull_config: '{}',
         push_config: '{}'
       };
@@ -82,6 +89,20 @@ export const merchantService = (set: any, get: any) => ({
       return true;
     } catch (err) {
       console.error('Failed to create merchant:', err);
+      return false;
+    }
+  },
+
+  deleteMerchant: async (id: string) => {
+    const { token } = get();
+    if (!token) return false;
+
+    try {
+      await merchantApi.delete(token, id);
+      await get().fetchMerchants();
+      return true;
+    } catch (err) {
+      console.error('Failed to delete merchant:', err);
       return false;
     }
   }

@@ -5,112 +5,114 @@ import { useStore } from '@/store';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { DataTable } from '@/components/ui/DataTable';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { Merchant, AdapterType, RestApiConfig, UiAutomationConfig } from '@/types';
+import { Merchant, AdapterType } from '@/types';
 import { ColumnDef } from '@tanstack/react-table';
 import {
   Settings,
   Heart,
-  Ban,
-  Play,
   Mail,
   Plus,
   X,
   Save,
-  AlertCircle
+  AlertCircle,
+  Trash2
 } from 'lucide-react';
 
 export default function MerchantRegistryPage() {
-  const { merchants, user, updateMerchantStatus, updateMerchantConfig, createMerchant, fetchMerchants } = useStore();
+  const { merchants, user, deleteMerchant, updateMerchantConfig, createMerchant, fetchMerchants } = useStore();
   
   useEffect(() => {
     fetchMerchants();
   }, [fetchMerchants]);
   
+  // ── Create Modal State ──
   const [isCreating, setIsCreating] = useState(false);
+  const [newMerchantId, setNewMerchantId] = useState('');
   const [newMerchantName, setNewMerchantName] = useState('');
-  const [newAdapterType, setNewAdapterType] = useState<AdapterType>('REST_API');
+  const [newAdapterType, setNewAdapterType] = useState('REST_API');
+  const [newCredentials, setNewCredentials] = useState('');
+  const [newPullConfig, setNewPullConfig] = useState('');
+  const [newPushConfig, setNewPushConfig] = useState('');
+
+  // ── Edit Modal State ──
+  const [editingMerchant, setEditingMerchant] = useState<Merchant | null>(null);
+  const [editMerchantId, setEditMerchantId] = useState('');
+  const [editMerchantName, setEditMerchantName] = useState('');
+  const [editAdapterType, setEditAdapterType] = useState('REST_API');
+  const [editCredentials, setEditCredentials] = useState('');
+  const [editPullConfig, setEditPullConfig] = useState('');
+  const [editPushConfig, setEditPushConfig] = useState('');
+
+  const [errorMsg, setErrorMsg] = useState('');
 
   const [dialogConfig, setDialogConfig] = useState<{
     isOpen: boolean;
     title: string;
     desc: string;
+    confirmLabel?: string;
+    type?: 'danger' | 'warning' | 'info';
     onConfirm: () => void;
   }>({
     isOpen: false,
     title: '',
     desc: '',
+    confirmLabel: 'Confirm Action',
+    type: 'warning',
     onConfirm: () => {}
   });
 
-  // State for Editing Config Modal
-  const [editingMerchant, setEditingMerchant] = useState<Merchant | null>(null);
-  const [adapterType, setAdapterType] = useState<AdapterType>('REST_API');
-  const [restUrl, setRestUrl] = useState('');
-  const [restMethod, setRestMethod] = useState<'GET' | 'POST' | 'PUT'>('POST');
-  const [restPoll, setRestPoll] = useState(3);
-  const [restParamsJson, setRestParamsJson] = useState('{}');
-  const [restHeadersJson, setRestHeadersJson] = useState('{}');
-  const [uiLoginUrl, setUiLoginUrl] = useState('');
-  const [uiDashboardUrl, setUiDashboardUrl] = useState('');
-  const [uiSelectorsJson, setUiSelectorsJson] = useState('{}');
-  const [errorMsg, setErrorMsg] = useState('');
-
-  const handleOpenConfig = (m: Merchant) => {
+  // ── Open Edit Modal ──
+  const handleOpenEdit = (m: Merchant) => {
     setEditingMerchant(m);
-    setAdapterType(m.adapterType);
+    setEditMerchantId(m.id);
+    setEditMerchantName(m.name);
+    setEditAdapterType(m.adapterType || 'REST_API');
+    setEditCredentials('');
+    setEditPullConfig(
+      (m.adapterType === 'UI_AUTOMATION' || m.adapterType === 'UI_BOT') && m.config
+        ? JSON.stringify(m.config, null, 2)
+        : ''
+    );
+    setEditPushConfig(
+      m.adapterType === 'REST_API' && m.config
+        ? JSON.stringify(m.config, null, 2)
+        : ''
+    );
     setErrorMsg('');
-
-    if (m.adapterType === 'REST_API') {
-      const cfg = m.config as RestApiConfig;
-      setRestUrl(cfg.url || '');
-      setRestMethod(cfg.method || 'POST');
-      setRestPoll(cfg.poll_interval_seconds || 3);
-      setRestParamsJson(JSON.stringify(cfg.params || {}, null, 2));
-      setRestHeadersJson(JSON.stringify(cfg.headers || {}, null, 2));
-    } else {
-      const cfg = m.config as UiAutomationConfig;
-      setUiLoginUrl(cfg.login_url || '');
-      setUiDashboardUrl(cfg.dashboard_url || '');
-      setUiSelectorsJson(JSON.stringify(cfg.selectors || {}, null, 2));
-    }
   };
 
-  const handleSaveConfig = (e: React.FormEvent) => {
+  // ── Save Edit ──
+  const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingMerchant) return;
     setErrorMsg('');
 
+    // Validate JSON fields if provided
     try {
-      let finalConfig: any = {};
-      if (adapterType === 'REST_API') {
-        JSON.parse(restParamsJson);
-        JSON.parse(restHeadersJson);
-        finalConfig = {
-          url: restUrl,
-          method: restMethod,
-          poll_interval_seconds: Number(restPoll),
-          params: JSON.parse(restParamsJson),
-          headers: JSON.parse(restHeadersJson)
-        };
-      } else {
-        const parsed = JSON.parse(uiSelectorsJson);
-        const required = ['username_input', 'password_input', 'submit_button', 'balance_element', 'transaction_row'];
-        for (const req of required) {
-          if (!parsed[req]) {
-            throw new Error(`Automation selectors must contain "${req}" key.`);
-          }
-        }
-        finalConfig = {
-          login_url: uiLoginUrl,
-          dashboard_url: uiDashboardUrl,
-          selectors: parsed
-        };
-      }
+      if (editPullConfig.trim()) JSON.parse(editPullConfig);
+    } catch {
+      setErrorMsg('Pull Config must be valid JSON.');
+      return;
+    }
+    try {
+      if (editPushConfig.trim()) JSON.parse(editPushConfig);
+    } catch {
+      setErrorMsg('Push Config must be valid JSON.');
+      return;
+    }
 
-      updateMerchantConfig(editingMerchant.id, adapterType, finalConfig);
+    try {
+      await updateMerchantConfig(editingMerchant.id, editAdapterType as AdapterType, {
+        merchant_id: editMerchantId,
+        merchant_name: editMerchantName,
+        adapter_type: editAdapterType,
+        credentials: editCredentials,
+        pull_config: editPullConfig || '{}',
+        push_config: editPushConfig || '{}'
+      });
       setEditingMerchant(null);
     } catch (err: any) {
-      setErrorMsg(`JSON Validation Error: ${err.message || 'Malformed JSON format detected.'}`);
+      setErrorMsg(`Failed to update merchant: ${err.message || 'Unknown error'}`);
     }
   };
 
@@ -134,27 +136,6 @@ export default function MerchantRegistryPage() {
       </span>
     );
   };
-
-  const getStatusBadge = (status: Merchant['status']) => {
-    let color = '';
-    switch (status) {
-      case 'ACTIVE':
-        color = 'bg-indigo-50 text-indigo-700 border-indigo-200';
-        break;
-      case 'INACTIVE':
-        color = 'bg-zinc-50 text-zinc-500 border-zinc-200';
-        break;
-      case 'SUSPENDED':
-        color = 'bg-rose-50 text-rose-700 border-rose-200';
-        break;
-    }
-    return (
-      <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded border text-[10px] font-bold uppercase tracking-wider ${color}`}>
-        {status}
-      </span>
-    );
-  };
-
   // Define column definitions
   const columns = useMemo<ColumnDef<Merchant>[]>(
     () => [
@@ -181,38 +162,6 @@ export default function MerchantRegistryPage() {
         )
       },
       {
-        accessorKey: 'health',
-        header: 'Telemetry Health',
-        cell: ({ row }) => getHealthBadge(row.original.health)
-      },
-      {
-        accessorKey: 'tps',
-        header: 'Clearing TPS',
-        cell: ({ row }) => (
-          <span className="font-mono text-xs font-bold text-zinc-800">
-            {row.original.tps.toFixed(1)} <span className="text-[9px] text-zinc-400 uppercase font-bold">TPS</span>
-          </span>
-        )
-      },
-      {
-        accessorKey: 'successRate',
-        header: 'Clearing Success %',
-        cell: ({ row }) => {
-          const rate = row.original.successRate;
-          const color = rate > 95 ? 'text-emerald-600' : rate > 80 ? 'text-amber-600' : 'text-rose-600';
-          return (
-            <span className={`font-mono text-xs font-extrabold ${color}`}>
-              {rate}%
-            </span>
-          );
-        }
-      },
-      {
-        accessorKey: 'status',
-        header: 'Routing Status',
-        cell: ({ row }) => getStatusBadge(row.original.status)
-      },
-      {
         id: 'actions',
         header: 'Management Ops',
         cell: ({ row }) => {
@@ -221,53 +170,37 @@ export default function MerchantRegistryPage() {
 
           return (
             <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-              {/* Suspend or Activate */}
-              {m.status === 'ACTIVE' ? (
-                <button
-                  onClick={() =>
-                    setDialogConfig({
-                      isOpen: true,
-                      title: 'Suspend Merchant Routing?',
-                      desc: `WARNING: This will suspend routing calls for ${m.name} adapter and reject subsequent requests.`,
-                      onConfirm: () => updateMerchantStatus(m.id, 'SUSPENDED')
-                    })
-                  }
-                  className="p-1 rounded bg-white border border-zinc-200 text-rose-600 hover:bg-rose-50 hover:border-rose-300 transition-all cursor-pointer shadow-3xs"
-                  title="Suspend routing"
-                >
-                  <Ban size={13} />
-                </button>
-              ) : (
-                <button
-                  onClick={() =>
-                    setDialogConfig({
-                      isOpen: true,
-                      title: 'Activate Merchant Routing?',
-                      desc: `This will resume orchestrating live transactions through ${m.name} adapters.`,
-                      onConfirm: () => updateMerchantStatus(m.id, 'ACTIVE')
-                    })
-                  }
-                  className="p-1 rounded bg-white border border-zinc-200 text-emerald-600 hover:bg-emerald-50 hover:border-emerald-300 transition-all cursor-pointer shadow-3xs"
-                  title="Activate routing"
-                >
-                  <Play size={13} />
-                </button>
-              )}
-
-              {/* Configure Link (Inline Modal Trigger) */}
+              {/* Edit Merchant */}
               <button
-                onClick={() => handleOpenConfig(m)}
+                onClick={() => handleOpenEdit(m)}
                 className="p-1 rounded bg-white border border-zinc-200 text-zinc-500 hover:bg-zinc-50 hover:text-zinc-800 transition-all cursor-pointer shadow-3xs"
-                title="Configure adapter"
+                title="Edit merchant"
               >
                 <Settings size={13} />
+              </button>
+              {/* Delete Merchant */}
+              <button
+                onClick={() =>
+                  setDialogConfig({
+                    isOpen: true,
+                    title: 'Delete Merchant?',
+                    desc: `WARNING: This will permanently delete ${m.name} and remove its integration config.`,
+                    confirmLabel: 'Delete Merchant',
+                    type: 'danger',
+                    onConfirm: () => deleteMerchant(m.id)
+                  })
+                }
+                className="p-1 rounded bg-white border border-zinc-200 text-rose-600 hover:bg-rose-50 hover:border-rose-300 transition-all cursor-pointer shadow-3xs"
+                title="Delete merchant"
+              >
+                <Trash2 size={13} />
               </button>
             </div>
           );
         }
       }
     ],
-    [user, updateMerchantStatus]
+    [user, deleteMerchant]
   );
 
   return (
@@ -280,8 +213,12 @@ export default function MerchantRegistryPage() {
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white shadow-md shadow-indigo-600/10 hover:shadow-indigo-600/20 transition-all cursor-pointer"
           onClick={() => {
             setIsCreating(true);
+            setNewMerchantId('');
             setNewMerchantName('');
             setNewAdapterType('REST_API');
+            setNewCredentials('');
+            setNewPullConfig('');
+            setNewPushConfig('');
             setErrorMsg('');
           }}
         >
@@ -292,14 +229,16 @@ export default function MerchantRegistryPage() {
 
       <DataTable columns={columns} data={merchants} searchKey="name" searchPlaceholder="Search merchants by name..." />
 
-      {/* MODAL CREATE MERCHANT */}
+      {/* ════════════════════════════════════════════════════════════════ */}
+      {/* MODAL CREATE MERCHANT                                          */}
+      {/* ════════════════════════════════════════════════════════════════ */}
       {isCreating && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="relative w-full max-w-md bg-white border border-zinc-200 rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200 text-zinc-600">
+          <div className="relative w-full max-w-lg bg-white border border-zinc-200 rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200 text-zinc-600">
             <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-150 bg-zinc-50/50">
               <div className="space-y-0.5">
                 <h3 className="text-sm font-bold text-zinc-900 uppercase tracking-wider">Register Merchant</h3>
-                <p className="text-[10px] text-zinc-400 font-semibold uppercase">Add a new integration adapter</p>
+                <p className="text-[10px] text-zinc-400 font-semibold uppercase">Add a new merchant integration</p>
               </div>
               <button
                 onClick={() => setIsCreating(false)}
@@ -322,15 +261,51 @@ export default function MerchantRegistryPage() {
               onSubmit={async (e) => {
                 e.preventDefault();
                 setErrorMsg('');
-                const success = await createMerchant(newMerchantName, newAdapterType);
+
+                // Validate JSON fields if provided
+                try {
+                  if (newPullConfig.trim()) JSON.parse(newPullConfig);
+                } catch {
+                  setErrorMsg('Pull Config must be valid JSON.');
+                  return;
+                }
+                try {
+                  if (newPushConfig.trim()) JSON.parse(newPushConfig);
+                } catch {
+                  setErrorMsg('Push Config must be valid JSON.');
+                  return;
+                }
+
+                const success = await createMerchant(newMerchantName, newAdapterType as AdapterType, {
+                  merchant_id: newMerchantId,
+                  merchant_name: newMerchantName,
+                  adapter_type: newAdapterType,
+                  credentials: newCredentials,
+                  pull_config: newPullConfig || '{}',
+                  push_config: newPushConfig || '{}'
+                });
                 if (success) {
                   setIsCreating(false);
                 } else {
                   setErrorMsg('Failed to create merchant. Please try again.');
                 }
               }}
-              className="p-6 space-y-4"
+              className="p-6 space-y-4 max-h-[70vh] overflow-y-auto"
             >
+              {/* Merchant ID */}
+              <div className="space-y-1">
+                <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-wide block">Merchant ID</label>
+                <input
+                  type="text"
+                  required
+                  value={newMerchantId}
+                  onChange={(e) => setNewMerchantId(e.target.value)}
+                  className="w-full px-3 py-1.5 rounded-lg border border-zinc-200 bg-white text-xs text-zinc-800 focus:outline-none focus:border-indigo-500 font-semibold font-mono"
+                  placeholder="e.g. mer-tokopedia-001"
+                />
+              </div>
+
+              {/* Merchant Name */}
               <div className="space-y-1">
                 <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-wide block">Merchant Name</label>
                 <input
@@ -343,8 +318,9 @@ export default function MerchantRegistryPage() {
                 />
               </div>
 
+              {/* Adapter Type */}
               <div className="space-y-1.5">
-                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wide block">Initial Adapter Protocol</span>
+                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wide block">Adapter Type</span>
                 <div className="flex gap-2">
                   <button
                     type="button"
@@ -359,18 +335,55 @@ export default function MerchantRegistryPage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setNewAdapterType('UI_AUTOMATION')}
+                    onClick={() => setNewAdapterType('UI_BOT')}
                     className={`flex-1 py-2 px-3 rounded-lg border text-xs font-bold transition-all text-center cursor-pointer ${
-                      newAdapterType === 'UI_AUTOMATION'
+                      newAdapterType === 'UI_BOT'
                         ? 'bg-indigo-50 border-indigo-500 text-indigo-700'
                         : 'bg-zinc-50 border-zinc-200 text-zinc-400 hover:border-zinc-300'
                     }`}
                   >
-                    UI Scraper Bot
+                    UI_BOT
                   </button>
                 </div>
               </div>
 
+              {/* Credentials */}
+              <div className="space-y-1">
+                <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-wide block">Credentials</label>
+                <textarea
+                  rows={3}
+                  value={newCredentials}
+                  onChange={(e) => setNewCredentials(e.target.value)}
+                  className="w-full p-2.5 rounded-lg border border-zinc-200 bg-white text-[11px] text-zinc-800 font-mono leading-normal focus:outline-none focus:border-indigo-500"
+                  placeholder="API key, token, or credentials string"
+                />
+              </div>
+
+              {/* Pull Config & Push Config */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-wide block">Pull Config (JSON)</label>
+                  <textarea
+                    rows={4}
+                    value={newPullConfig}
+                    onChange={(e) => setNewPullConfig(e.target.value)}
+                    className="w-full p-2.5 rounded-lg border border-zinc-200 bg-white text-[11px] text-zinc-800 font-mono leading-normal focus:outline-none focus:border-indigo-500"
+                    placeholder='{"url": "...", "interval": 30}'
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-wide block">Push Config (JSON)</label>
+                  <textarea
+                    rows={4}
+                    value={newPushConfig}
+                    onChange={(e) => setNewPushConfig(e.target.value)}
+                    className="w-full p-2.5 rounded-lg border border-zinc-200 bg-white text-[11px] text-zinc-800 font-mono leading-normal focus:outline-none focus:border-indigo-500"
+                    placeholder='{"callback_url": "...", "method": "POST"}'
+                  />
+                </div>
+              </div>
+
+              {/* Actions */}
               <div className="flex justify-end gap-2.5 pt-4 border-t border-zinc-150">
                 <button
                   type="button"
@@ -392,15 +405,17 @@ export default function MerchantRegistryPage() {
         </div>
       )}
 
-      {/* MODAL EDIT CONFIG */}
+      {/* ════════════════════════════════════════════════════════════════ */}
+      {/* MODAL EDIT MERCHANT                                            */}
+      {/* ════════════════════════════════════════════════════════════════ */}
       {editingMerchant && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="relative w-full max-w-2xl bg-white border border-zinc-200 rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200 text-zinc-600">
+          <div className="relative w-full max-w-lg bg-white border border-zinc-200 rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200 text-zinc-600">
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-150 bg-zinc-50/50">
               <div className="space-y-0.5">
-                <h3 className="text-sm font-bold text-zinc-900 uppercase tracking-wider">Configure {editingMerchant.name}</h3>
-                <p className="text-[10px] text-zinc-400 font-semibold uppercase">Modify Active Integration Gateway Adapter</p>
+                <h3 className="text-sm font-bold text-zinc-900 uppercase tracking-wider">Edit {editingMerchant.name}</h3>
+                <p className="text-[10px] text-zinc-400 font-semibold uppercase">Modify merchant configuration</p>
               </div>
               <button
                 onClick={() => setEditingMerchant(null)}
@@ -421,120 +436,96 @@ export default function MerchantRegistryPage() {
             )}
 
             {/* Form */}
-            <form onSubmit={handleSaveConfig} className="p-6 space-y-4 max-h-[65vh] overflow-y-auto">
-              {/* ADAPTER PROTOCOL */}
+            <form onSubmit={handleSaveEdit} className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+              {/* Merchant ID (read-only in edit mode) */}
+              <div className="space-y-1">
+                <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-wide block">Merchant ID</label>
+                <input
+                  type="text"
+                  required
+                  readOnly
+                  value={editMerchantId}
+                  className="w-full px-3 py-1.5 rounded-lg border border-zinc-200 bg-zinc-50 text-xs text-zinc-500 focus:outline-none font-semibold font-mono cursor-not-allowed"
+                />
+              </div>
+
+              {/* Merchant Name */}
+              <div className="space-y-1">
+                <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-wide block">Merchant Name</label>
+                <input
+                  type="text"
+                  required
+                  value={editMerchantName}
+                  onChange={(e) => setEditMerchantName(e.target.value)}
+                  className="w-full px-3 py-1.5 rounded-lg border border-zinc-200 bg-white text-xs text-zinc-800 focus:outline-none focus:border-indigo-500 font-semibold"
+                  placeholder="e.g. Tokopedia E-Commerce"
+                />
+              </div>
+
+              {/* Adapter Type */}
               <div className="space-y-1.5">
-                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wide block">Protocol Integration</span>
+                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wide block">Adapter Type</span>
                 <div className="flex gap-2">
                   <button
                     type="button"
-                    onClick={() => setAdapterType('REST_API')}
+                    onClick={() => setEditAdapterType('REST_API')}
                     className={`flex-1 py-2 px-3 rounded-lg border text-xs font-bold transition-all text-center cursor-pointer ${
-                      adapterType === 'REST_API'
+                      editAdapterType === 'REST_API'
                         ? 'bg-indigo-50 border-indigo-500 text-indigo-700'
                         : 'bg-zinc-50 border-zinc-200 text-zinc-400 hover:border-zinc-300'
                     }`}
                   >
-                    REST API Call
+                    REST API
                   </button>
                   <button
                     type="button"
-                    onClick={() => setAdapterType('UI_AUTOMATION')}
+                    onClick={() => setEditAdapterType('UI_BOT')}
                     className={`flex-1 py-2 px-3 rounded-lg border text-xs font-bold transition-all text-center cursor-pointer ${
-                      adapterType === 'UI_AUTOMATION'
+                      editAdapterType === 'UI_BOT'
                         ? 'bg-indigo-50 border-indigo-500 text-indigo-700'
                         : 'bg-zinc-50 border-zinc-200 text-zinc-400 hover:border-zinc-300'
                     }`}
                   >
-                    UI Scraper Bot
+                    UI_BOT
                   </button>
                 </div>
               </div>
 
-              {adapterType === 'REST_API' ? (
-                <div className="space-y-4 animate-in fade-in duration-200">
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="col-span-2 space-y-1">
-                      <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-wide block">Callback URL</label>
-                      <input
-                        type="url"
-                        required
-                        value={restUrl}
-                        onChange={(e) => setRestUrl(e.target.value)}
-                        className="w-full px-3 py-1.5 rounded-lg border border-zinc-200 bg-white text-xs text-zinc-800 focus:outline-none focus:border-indigo-500 font-semibold font-mono"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-wide block">Method</label>
-                      <select
-                        value={restMethod}
-                        onChange={(e) => setRestMethod(e.target.value as any)}
-                        className="w-full px-3 py-1.5 rounded-lg border border-zinc-200 bg-white text-xs text-zinc-800 focus:outline-none focus:border-indigo-500 font-bold"
-                      >
-                        <option value="POST">POST</option>
-                        <option value="PUT">PUT</option>
-                        <option value="GET">GET</option>
-                      </select>
-                    </div>
-                  </div>
+              {/* Credentials */}
+              <div className="space-y-1">
+                <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-wide block">Credentials</label>
+                <textarea
+                  rows={3}
+                  value={editCredentials}
+                  onChange={(e) => setEditCredentials(e.target.value)}
+                  className="w-full p-2.5 rounded-lg border border-zinc-200 bg-white text-[11px] text-zinc-800 font-mono leading-normal focus:outline-none focus:border-indigo-500"
+                  placeholder="API key, token, or credentials string"
+                />
+              </div>
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-wide block">Static Query Params (JSON)</label>
-                      <textarea
-                        rows={4}
-                        value={restParamsJson}
-                        onChange={(e) => setRestParamsJson(e.target.value)}
-                        className="w-full p-2.5 rounded-lg border border-zinc-200 bg-white text-[11px] text-zinc-800 font-mono leading-normal focus:outline-none focus:border-indigo-500"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-wide block">HTTP Headers (JSON)</label>
-                      <textarea
-                        rows={4}
-                        value={restHeadersJson}
-                        onChange={(e) => setRestHeadersJson(e.target.value)}
-                        className="w-full p-2.5 rounded-lg border border-zinc-200 bg-white text-[11px] text-zinc-800 font-mono leading-normal focus:outline-none focus:border-indigo-500"
-                      />
-                    </div>
-                  </div>
+              {/* Pull Config & Push Config */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-wide block">Pull Config (JSON)</label>
+                  <textarea
+                    rows={4}
+                    value={editPullConfig}
+                    onChange={(e) => setEditPullConfig(e.target.value)}
+                    className="w-full p-2.5 rounded-lg border border-zinc-200 bg-white text-[11px] text-zinc-800 font-mono leading-normal focus:outline-none focus:border-indigo-500"
+                    placeholder='{"url": "...", "interval": 30}'
+                  />
                 </div>
-              ) : (
-                <div className="space-y-4 animate-in fade-in duration-200">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-wide block">Bot Login URL</label>
-                      <input
-                        type="url"
-                        required
-                        value={uiLoginUrl}
-                        onChange={(e) => setUiLoginUrl(e.target.value)}
-                        className="w-full px-3 py-1.5 rounded-lg border border-zinc-200 bg-white text-xs text-zinc-800 focus:outline-none focus:border-indigo-500 font-semibold font-mono"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-wide block">Target Dashboard URL</label>
-                      <input
-                        type="url"
-                        required
-                        value={uiDashboardUrl}
-                        onChange={(e) => setUiDashboardUrl(e.target.value)}
-                        className="w-full px-3 py-1.5 rounded-lg border border-zinc-200 bg-white text-xs text-zinc-800 focus:outline-none focus:border-indigo-500 font-semibold font-mono"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-wide block">Automation Web Selectors (JSON)</label>
-                    <textarea
-                      rows={5}
-                      value={uiSelectorsJson}
-                      onChange={(e) => setUiSelectorsJson(e.target.value)}
-                      className="w-full p-2.5 rounded-lg border border-zinc-200 bg-white text-[11px] text-zinc-800 font-mono leading-normal focus:outline-none focus:border-indigo-500"
-                    />
-                  </div>
+                <div className="space-y-1">
+                  <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-wide block">Push Config (JSON)</label>
+                  <textarea
+                    rows={4}
+                    value={editPushConfig}
+                    onChange={(e) => setEditPushConfig(e.target.value)}
+                    className="w-full p-2.5 rounded-lg border border-zinc-200 bg-white text-[11px] text-zinc-800 font-mono leading-normal focus:outline-none focus:border-indigo-500"
+                    placeholder='{"callback_url": "...", "method": "POST"}'
+                  />
                 </div>
-              )}
+              </div>
 
               {/* Action Buttons */}
               <div className="flex justify-end gap-2.5 pt-4 border-t border-zinc-150">
@@ -550,7 +541,7 @@ export default function MerchantRegistryPage() {
                   className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs font-bold text-white shadow-md shadow-indigo-600/10 transition-all cursor-pointer"
                 >
                   <Save size={13} />
-                  <span>Apply Config Changes</span>
+                  <span>Save Changes</span>
                 </button>
               </div>
             </form>
@@ -565,8 +556,8 @@ export default function MerchantRegistryPage() {
         onConfirm={dialogConfig.onConfirm}
         title={dialogConfig.title}
         description={dialogConfig.desc}
-        type="warning"
-        confirmLabel="Confirm Status Change"
+        type={dialogConfig.type || 'warning'}
+        confirmLabel={dialogConfig.confirmLabel || 'Confirm Action'}
       />
     </div>
   );

@@ -8,7 +8,7 @@ export interface MerchantCreateRequest {
   adapter_type: string;
   pull_config: string;
   push_config: string;
-  credentials?: string;
+  credentials: string;
 }
 
 export const merchantApi = {

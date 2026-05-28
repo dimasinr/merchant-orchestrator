@@ -63,7 +63,7 @@ export interface Transaction {
   retryProgress?: string;
 }
 
-export type AdapterType = 'REST_API' | 'UI_AUTOMATION';
+export type AdapterType = 'REST_API' | 'UI_AUTOMATION' | 'UI_BOT';
 
 export interface RestApiConfig {
   url: string;

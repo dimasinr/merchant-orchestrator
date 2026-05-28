@@ -128,18 +128,6 @@ export function Sidebar() {
           <span>Merchant Management</span>
         </Link>
 
-        <Link
-          href="/dashboard/merchant-registry"
-          className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
-            pathname === '/dashboard/merchant-registry'
-              ? 'bg-indigo-50/40 text-indigo-700 font-bold'
-              : 'text-zinc-500 hover:bg-zinc-50/60 hover:text-zinc-900'
-          }`}
-        >
-          <List size={14} className={pathname === '/dashboard/merchant-registry' ? 'text-indigo-600' : 'opacity-75'} />
-          <span>Merchant Registry</span>
-        </Link>
-
         {/* Monitoring & Settings */}
         <div className="pt-4 pb-1 px-3 text-[9px] font-extrabold text-zinc-400 uppercase tracking-widest flex items-center gap-1.5">
           <Settings size={11} className="opacity-70" />
