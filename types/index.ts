@@ -91,6 +91,8 @@ export interface Merchant {
   email: string;
   status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
   adapterType: AdapterType;
+  adapterName?: string;
+  cashinPartnerId?: string;
   config: RestApiConfig | UiAutomationConfig;
   health: 'HEALTHY' | 'UNHEALTHY' | 'DEGRADED';
   tps: number;

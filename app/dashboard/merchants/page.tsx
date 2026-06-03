@@ -30,6 +30,8 @@ export default function MerchantRegistryPage() {
   const [newMerchantId, setNewMerchantId] = useState('');
   const [newMerchantName, setNewMerchantName] = useState('');
   const [newAdapterType, setNewAdapterType] = useState('REST_API');
+  const [newAdapterName, setNewAdapterName] = useState('');
+  const [newCashinPartnerId, setNewCashinPartnerId] = useState('');
   const [newCredentials, setNewCredentials] = useState('');
   const [newPullConfig, setNewPullConfig] = useState('');
   const [newPushConfig, setNewPushConfig] = useState('');
@@ -39,6 +41,8 @@ export default function MerchantRegistryPage() {
   const [editMerchantId, setEditMerchantId] = useState('');
   const [editMerchantName, setEditMerchantName] = useState('');
   const [editAdapterType, setEditAdapterType] = useState('REST_API');
+  const [editAdapterName, setEditAdapterName] = useState('');
+  const [editCashinPartnerId, setEditCashinPartnerId] = useState('');
   const [editCredentials, setEditCredentials] = useState('');
   const [editPullConfig, setEditPullConfig] = useState('');
   const [editPushConfig, setEditPushConfig] = useState('');
@@ -67,6 +71,8 @@ export default function MerchantRegistryPage() {
     setEditMerchantId(m.id);
     setEditMerchantName(m.name);
     setEditAdapterType(m.adapterType || 'REST_API');
+    setEditAdapterName(m.adapterName || '');
+    setEditCashinPartnerId(m.cashinPartnerId || '');
     setEditCredentials('');
     setEditPullConfig(
       (m.adapterType === 'UI_AUTOMATION' || m.adapterType === 'UI_BOT') && m.config
@@ -106,6 +112,8 @@ export default function MerchantRegistryPage() {
         merchant_id: editMerchantId,
         merchant_name: editMerchantName,
         adapter_type: editAdapterType,
+        adapter_name: editAdapterName,
+        cashin_partner_id: editCashinPartnerId,
         credentials: editCredentials,
         pull_config: editPullConfig || '{}',
         push_config: editPushConfig || '{}'
@@ -156,9 +164,21 @@ export default function MerchantRegistryPage() {
         accessorKey: 'adapterType',
         header: 'Active Adapter',
         cell: ({ row }) => (
-          <span className="font-mono text-[9px] font-extrabold text-zinc-500 bg-zinc-100 border border-zinc-200 px-2 py-0.5 rounded uppercase tracking-wide">
-            {row.original.adapterType}
-          </span>
+          <div className="flex flex-col gap-1">
+            <span className="font-mono text-[9px] font-extrabold text-zinc-500 bg-zinc-100 border border-zinc-200 px-2 py-0.5 rounded uppercase tracking-wide w-fit">
+              {row.original.adapterType}
+            </span>
+            {row.original.adapterName && (
+              <span className="text-[10px] text-zinc-500 font-semibold font-mono">
+                Adapter: {row.original.adapterName}
+              </span>
+            )}
+            {row.original.cashinPartnerId && (
+              <span className="text-[10px] text-zinc-400 font-semibold font-mono">
+                Partner: {row.original.cashinPartnerId}
+              </span>
+            )}
+          </div>
         )
       },
       {
@@ -216,6 +236,8 @@ export default function MerchantRegistryPage() {
             setNewMerchantId('');
             setNewMerchantName('');
             setNewAdapterType('REST_API');
+            setNewAdapterName('');
+            setNewCashinPartnerId('');
             setNewCredentials('');
             setNewPullConfig('');
             setNewPushConfig('');
@@ -280,6 +302,8 @@ export default function MerchantRegistryPage() {
                   merchant_id: newMerchantId,
                   merchant_name: newMerchantName,
                   adapter_type: newAdapterType,
+                  adapter_name: newAdapterName,
+                  cashin_partner_id: newCashinPartnerId,
                   credentials: newCredentials,
                   pull_config: newPullConfig || '{}',
                   push_config: newPushConfig || '{}'
@@ -345,6 +369,30 @@ export default function MerchantRegistryPage() {
                     UI_BOT
                   </button>
                 </div>
+              </div>
+
+              {/* Adapter Name */}
+              <div className="space-y-1">
+                <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-wide block">Adapter Name</label>
+                <input
+                  type="text"
+                  value={newAdapterName}
+                  onChange={(e) => setNewAdapterName(e.target.value)}
+                  className="w-full px-3 py-1.5 rounded-lg border border-zinc-200 bg-white text-xs text-zinc-800 focus:outline-none focus:border-indigo-500 font-semibold"
+                  placeholder="e.g. vigor"
+                />
+              </div>
+
+              {/* Cashin Partner ID */}
+              <div className="space-y-1">
+                <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-wide block">Cashin Partner ID</label>
+                <input
+                  type="text"
+                  value={newCashinPartnerId}
+                  onChange={(e) => setNewCashinPartnerId(e.target.value)}
+                  className="w-full px-3 py-1.5 rounded-lg border border-zinc-200 bg-white text-xs text-zinc-800 focus:outline-none focus:border-indigo-500 font-semibold font-mono"
+                  placeholder="e.g. PARTNER-123"
+                />
               </div>
 
               {/* Credentials */}
@@ -489,6 +537,30 @@ export default function MerchantRegistryPage() {
                     UI_BOT
                   </button>
                 </div>
+              </div>
+
+              {/* Adapter Name */}
+              <div className="space-y-1">
+                <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-wide block">Adapter Name</label>
+                <input
+                  type="text"
+                  value={editAdapterName}
+                  onChange={(e) => setEditAdapterName(e.target.value)}
+                  className="w-full px-3 py-1.5 rounded-lg border border-zinc-200 bg-white text-xs text-zinc-800 focus:outline-none focus:border-indigo-500 font-semibold"
+                  placeholder="e.g. vigor"
+                />
+              </div>
+
+              {/* Cashin Partner ID */}
+              <div className="space-y-1">
+                <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-wide block">Cashin Partner ID</label>
+                <input
+                  type="text"
+                  value={editCashinPartnerId}
+                  onChange={(e) => setEditCashinPartnerId(e.target.value)}
+                  className="w-full px-3 py-1.5 rounded-lg border border-zinc-200 bg-white text-xs text-zinc-800 focus:outline-none focus:border-indigo-500 font-semibold font-mono"
+                  placeholder="e.g. PARTNER-123"
+                />
               </div>
 
               {/* Credentials */}
