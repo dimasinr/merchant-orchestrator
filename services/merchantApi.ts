@@ -9,6 +9,8 @@ export interface MerchantCreateRequest {
   pull_config: string;
   push_config: string;
   credentials: string;
+  adapter_name?: string;
+  cashin_partner_id?: string;
 }
 
 export const merchantApi = {

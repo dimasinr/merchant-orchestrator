@@ -19,6 +19,8 @@ export const merchantService = (set: any, get: any) => ({
         email: 'unknown@example.com', // API doesn't return email based on swagger
         status: 'ACTIVE',
         adapterType: (m.adapter_type || 'REST_API') as AdapterType,
+        adapterName: m.adapter_name || '',
+        cashinPartnerId: m.cashin_partner_id || '',
         health: 'HEALTHY',
         tps: 0,
         successRate: 100,
@@ -44,6 +46,8 @@ export const merchantService = (set: any, get: any) => ({
         merchant_id: config.merchant_id || id,
         merchant_name: config.merchant_name || 'Unknown',
         adapter_type: config.adapter_type || _adapterType,
+        adapter_name: config.adapter_name || '',
+        cashin_partner_id: config.cashin_partner_id || '',
         credentials: config.credentials || '',
         pull_config: config.pull_config || '{}',
         push_config: config.push_config || '{}',
@@ -73,6 +77,8 @@ export const merchantService = (set: any, get: any) => ({
         merchant_id: requestData.merchant_id || `mer-${Date.now()}`,
         merchant_name: requestData.merchant_name || _name,
         adapter_type: requestData.adapter_type || _adapterType,
+        adapter_name: requestData.adapter_name || '',
+        cashin_partner_id: requestData.cashin_partner_id || '',
         credentials: requestData.credentials || '',
         pull_config: requestData.pull_config || '{}',
         push_config: requestData.push_config || '{}'
@@ -80,6 +86,8 @@ export const merchantService = (set: any, get: any) => ({
         merchant_id: `mer-${Date.now()}`,
         merchant_name: _name,
         adapter_type: _adapterType,
+        adapter_name: '',
+        cashin_partner_id: '',
         credentials: '',
         pull_config: '{}',
         push_config: '{}'
