@@ -26,6 +26,7 @@ interface StoreState {
   authError: string | null;
   hydrateAuth: () => void;
   loginAdmin: (email: string, password: string) => Promise<boolean>;
+  changePassword: (oldPassword: string, newPassword: string) => Promise<boolean>;
   loginMerchant: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
 

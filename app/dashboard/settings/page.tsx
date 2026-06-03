@@ -12,11 +12,12 @@ import {
   Eye,
   EyeOff,
   Copy,
-  Check
+  Check,
+  Lock
 } from 'lucide-react';
 
 export default function SettingsPage() {
-  const { user } = useStore();
+  const { user, changePassword } = useStore();
 
   const [timeout, setTimeoutVal] = useState(30);
   const [retries, setRetries] = useState(3);
@@ -27,6 +28,17 @@ export default function SettingsPage() {
   const [copied, setCopied] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
+
+  // Password change state variables
+  const [oldPassword, setOldPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showOldPassword, setShowOldPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [pwError, setPwError] = useState('');
+  const [pwSuccess, setPwSuccess] = useState('');
+  const [isChangingPw, setIsChangingPw] = useState(false);
 
   const mockApiKey = 'orc_live_7a8f9c0b1d2e3f4a5b6c7d8e9f0a1b2c3d4e';
 
@@ -44,6 +56,44 @@ export default function SettingsPage() {
   const confirmSave = () => {
     setSuccessMsg('Global system settings compiled and pushed to configurations server!');
     setTimeout(() => setSuccessMsg(''), 4000);
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPwError('');
+    setPwSuccess('');
+
+    if (!oldPassword || !newPassword || !confirmPassword) {
+      setPwError('All fields are required.');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPwError('New passwords do not match.');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setPwError('New password must be at least 6 characters.');
+      return;
+    }
+
+    setIsChangingPw(true);
+    try {
+      const success = await changePassword(oldPassword, newPassword);
+      if (success) {
+        setPwSuccess('Password changed successfully!');
+        setOldPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+      } else {
+        setPwError('Failed to change password. Please check your current password.');
+      }
+    } catch (err) {
+      setPwError('An error occurred. Please try again.');
+    } finally {
+      setIsChangingPw(false);
+    }
   };
 
   return (
@@ -98,6 +148,99 @@ export default function SettingsPage() {
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Change Password Card */}
+          <div className="bg-white border border-zinc-200/80 rounded-xl p-5 shadow-xs space-y-4">
+            <div className="flex items-center gap-2 text-indigo-600">
+              <Lock size={16} />
+              <h3 className="text-xs font-bold text-zinc-950 uppercase tracking-wider">Change Password</h3>
+            </div>
+            <p className="text-[10px] text-zinc-400 font-semibold uppercase leading-relaxed">
+              Update admin security credentials.
+            </p>
+
+            {pwError && (
+              <div className="bg-rose-50 border border-rose-100 text-rose-700 p-2.5 rounded-lg text-[10px] font-semibold">
+                {pwError}
+              </div>
+            )}
+
+            {pwSuccess && (
+              <div className="bg-emerald-50 border border-emerald-100 text-emerald-700 p-2.5 rounded-lg text-[10px] font-semibold">
+                {pwSuccess}
+              </div>
+            )}
+
+            <form onSubmit={handleChangePassword} className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-wide block">Current Password</label>
+                <div className="relative">
+                  <input
+                    type={showOldPassword ? 'text' : 'password'}
+                    required
+                    value={oldPassword}
+                    onChange={(e) => setOldPassword(e.target.value)}
+                    className="w-full pl-3 pr-8 py-1.5 rounded-lg border border-zinc-200 bg-white text-xs text-zinc-800 focus:outline-none focus:border-indigo-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowOldPassword(!showOldPassword)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-zinc-400 hover:text-zinc-700 transition-all cursor-pointer"
+                  >
+                    {showOldPassword ? <EyeOff size={11} /> : <Eye size={11} />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-wide block">New Password</label>
+                <div className="relative">
+                  <input
+                    type={showNewPassword ? 'text' : 'password'}
+                    required
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full pl-3 pr-8 py-1.5 rounded-lg border border-zinc-200 bg-white text-xs text-zinc-800 focus:outline-none focus:border-indigo-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-zinc-400 hover:text-zinc-700 transition-all cursor-pointer"
+                  >
+                    {showNewPassword ? <EyeOff size={11} /> : <Eye size={11} />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-wide block">Confirm New Password</label>
+                <div className="relative">
+                  <input
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    required
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-full pl-3 pr-8 py-1.5 rounded-lg border border-zinc-200 bg-white text-xs text-zinc-800 focus:outline-none focus:border-indigo-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-zinc-400 hover:text-zinc-700 transition-all cursor-pointer"
+                  >
+                    {showConfirmPassword ? <EyeOff size={11} /> : <Eye size={11} />}
+                  </button>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isChangingPw}
+                className="w-full flex items-center justify-center gap-1.5 px-4 py-2 mt-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-400 text-xs font-bold text-white shadow-md shadow-indigo-600/10 hover:shadow-indigo-600/20 transition-all cursor-pointer"
+              >
+                {isChangingPw ? 'Updating...' : 'Update Password'}
+              </button>
+            </form>
           </div>
         </div>
 

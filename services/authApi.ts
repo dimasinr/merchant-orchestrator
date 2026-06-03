@@ -14,5 +14,14 @@ export const authApi = {
       method: 'POST',
       body: { email, password }
     });
+  },
+
+  adminChangePassword(token: string, data: { old_password: string, new_password: string }) {
+    return apiRequest<any>(`/admin/password-reset`, {
+      method: 'POST',
+      token,
+      body: data
+    });
   }
+  
 };
