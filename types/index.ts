@@ -1,11 +1,14 @@
 export type Role = 'SUPER_ADMIN' | 'OPERATOR' | 'VIEWER' | 'MERCHANT_ADMIN';
 
+export type AccountType = 'admin' | 'merchant';
+
 export interface User {
   id: string;
   name: string;
   email: string;
   role: Role;
   merchantId?: string;
+  merchantName?: string;
 }
 
 export interface AuthState {
@@ -56,9 +59,11 @@ export interface Transaction {
   payload: string; // JSON string
   history: TransactionHistoryEntry[];
   logs: TransactionLog[];
+  cashinReferenceNo?: string;
+  retryProgress?: string;
 }
 
-export type AdapterType = 'REST_API' | 'UI_AUTOMATION';
+export type AdapterType = 'REST_API' | 'UI_AUTOMATION' | 'UI_BOT';
 
 export interface RestApiConfig {
   url: string;

@@ -36,24 +36,8 @@ export function Sidebar() {
           <QrCode size={16} />
         </div>
         <div className="flex flex-col">
-          <span className="font-extrabold text-sm tracking-tight text-zinc-900 leading-none">QRIS PAY</span>
+          <span className="font-extrabold text-sm tracking-tight text-zinc-900 leading-none">CASHIN</span>
           <span className="text-[9px] text-zinc-400 font-bold tracking-wider uppercase mt-0.5">ORCHESTRATOR</span>
-        </div>
-      </div>
-
-      {/* User Session Info */}
-      <div className="p-4 border-b border-zinc-150 bg-zinc-50/20">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-zinc-100 border border-zinc-200 flex items-center justify-center font-bold text-zinc-700 shadow-2xs">
-            {user.name.substring(0, 2).toUpperCase()}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-bold text-zinc-800 truncate leading-snug">{user.name}</p>
-            <p className="text-[10px] text-zinc-400 font-medium truncate leading-none mt-0.5">{user.email}</p>
-            <span className="inline-block px-1.5 py-0.5 text-[8px] font-extrabold bg-indigo-50 text-indigo-700 border border-indigo-100 rounded-sm mt-1.5 uppercase tracking-wide">
-              {user.role.replace('_', ' ')}
-            </span>
-          </div>
         </div>
       </div>
 
@@ -140,8 +124,8 @@ export function Sidebar() {
               : 'text-zinc-500 hover:bg-zinc-50/60 hover:text-zinc-900'
           }`}
         >
-          <List size={14} className={pathname === '/dashboard/merchants' ? 'text-indigo-600' : 'opacity-75'} />
-          <span>Merchant Registry</span>
+          <Settings size={14} className={pathname === '/dashboard/merchants' ? 'text-indigo-600' : 'opacity-75'} />
+          <span>Merchant Management</span>
         </Link>
 
         {/* Monitoring & Settings */}
@@ -180,7 +164,10 @@ export function Sidebar() {
       {/* Logout Footer */}
       <div className="p-4 border-t border-zinc-150 bg-zinc-50/40">
         <button
-          onClick={logout}
+          onClick={() => {
+            logout();
+            window.location.href = '/';
+          }}
           className="w-full flex items-center justify-center gap-2 py-2 px-4 rounded-lg bg-white hover:bg-rose-50 hover:text-rose-600 text-zinc-500 border border-zinc-200 hover:border-rose-100 transition-all text-xs font-bold cursor-pointer shadow-3xs"
         >
           <LogOut size={14} />

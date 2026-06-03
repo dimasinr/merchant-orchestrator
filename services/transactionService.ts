@@ -1,128 +1,137 @@
-import { TransactionStatus } from '@/types';
+import { mapDetailToTransaction, mapDlqItemToTransaction, mapListItemToTransaction } from '@/lib/mappers';
+import { canExecuteGatewayActions } from '@/lib/permissions';
+import { transactionApi } from '@/services/transactionApi';
+import type { GatewayAction } from '@/types/api';
+import type { TransactionStatus } from '@/types';
 
 export const transactionService = (set: any, get: any) => ({
+  transactionsLoading: false,
+  transactionsError: null as string | null,
+  transactionPagination: null as {
+    page: number;
+    page_size: number;
+    total_pages: number;
+    total_records: number;
+  } | null,
+
+  refreshTransactions: async (params?: { search?: string; status?: string; page?: number }) => {
+    const { token } = get();
+    if (!token) return;
+
+    set({ transactionsLoading: true, transactionsError: null });
+    try {
+      const response = await transactionApi.list(token, {
+        page: params?.page ?? 1,
+        page_size: 50,
+        search: params?.search,
+        status: params?.status
+      });
+      const transactions = response.data.map(mapListItemToTransaction);
+      set({
+        transactions,
+        transactionPagination: response.pagination,
+        transactionsLoading: false
+      });
+      get().updateMetrics();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to load transactions';
+      set({ transactionsLoading: false, transactionsError: message });
+    }
+  },
+
+  fetchTransactionByReference: async (referenceId: string) => {
+    const { token } = get();
+    if (!token) return null;
+
+    try {
+      const detailRes = await transactionApi.getDetail(token, referenceId);
+      let logsRes;
+      try {
+        logsRes = await transactionApi.getLogs(token, referenceId, { page_size: 100 });
+      } catch {
+        logsRes = { data: [], pagination: { page: 1, page_size: 0, total_pages: 0, total_records: 0 } };
+      }
+
+      const mapped = mapDetailToTransaction(detailRes.transaction, {
+        lifecycle: detailRes.lifecycle,
+        errorMessage: detailRes.error_message,
+        logs: logsRes.data,
+        webhookPayload: detailRes.webhook_payload
+      });
+
+      set((state: { transactions: typeof mapped[] }) => {
+        const exists = state.transactions.some((t) => t.referenceId === referenceId);
+        const transactions = exists
+          ? state.transactions.map((t) => (t.referenceId === referenceId ? mapped : t))
+          : [mapped, ...state.transactions];
+        return { transactions };
+      });
+
+      return mapped;
+    } catch {
+      return null;
+    }
+  },
+
+  refreshDlq: async (type: 'dlq' | 'retry' = 'dlq', search?: string) => {
+    const { token } = get();
+    if (!token) return;
+
+    set({ transactionsLoading: true, transactionsError: null });
+    try {
+      const response =
+        type === 'retry'
+          ? await transactionApi.listRetryQueue(token, { page: 1, page_size: 50 })
+          : await transactionApi.listDlq(token, { page: 1, page_size: 50, search });
+
+      const transactions = response.data.map(mapDlqItemToTransaction);
+      set({ transactions, transactionsLoading: false });
+      get().updateMetrics();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to load queue';
+      set({ transactionsLoading: false, transactionsError: message });
+    }
+  },
+
   setSelectedTransactionId: (id: string | null) => set({ selectedTransactionId: id }),
 
-  updateTransactionStatus: (id: string, status: TransactionStatus, message?: string) => {
-    set((state: any) => {
-      const txs = state.transactions.map((t: any) => {
-        if (t.id === id) {
-          const nowStr = new Date().toISOString();
-          const newHistory = [...t.history, { status, timestamp: nowStr, message: message || `Updated to ${status}` }];
-          const newLogs = [
-            ...t.logs,
-            {
-              timestamp: nowStr,
-              severity: (status.includes('FAIL') || status === 'FAILED') ? 'error' : status === 'MANUAL_REVIEW' ? 'critical' : 'info',
-              message: message || `Status transition: ${t.status} -> ${status}`,
-              component: 'OPERATOR_ACTION',
-              traceId: `tr-${t.id.substring(3)}`
-            }
-          ];
-          return {
-            ...t,
-            status,
-            updatedAt: nowStr,
-            errorMessage: message || null,
-            history: newHistory,
-            logs: newLogs
-          };
-        }
-        return t;
-      });
-      return { transactions: txs };
-    });
-    get().updateMetrics();
+  executeGatewayAction: async (referenceId: string, action: GatewayAction) => {
+    const { token, user } = get();
+    if (!token || !canExecuteGatewayActions(user?.role)) return false;
+
+    await transactionApi.executeAction(token, referenceId, action);
+    await get().fetchTransactionByReference(referenceId);
+    await get().refreshTransactions();
+    get().addAuditLog('GATEWAY_ACTION', `${action} on ${referenceId}`);
+    return true;
   },
 
-  retryTransaction: (id: string) => {
-    const tx = get().transactions.find((t: any) => t.id === id);
-    if (!tx) return;
-
-    set((state: any) => {
-      const txs = state.transactions.map((t: any) => {
-        if (t.id === id) {
-          const nowStr = new Date().toISOString();
-          const newHistory = [...t.history, { status: 'ACCEPT_SUBMITTING' as TransactionStatus, timestamp: nowStr, message: 'Operator manually triggered adapter retry.' }];
-          const newLogs = [
-            ...t.logs,
-            {
-              timestamp: nowStr,
-              severity: 'info',
-              message: 'Manual retry initiated. Re-submitting payment verification request to adapter.',
-              component: 'CORE_ORCHESTRATOR',
-              traceId: `tr-${t.id.substring(3)}`
-            }
-          ];
-          return {
-            ...t,
-            status: 'ACCEPT_SUBMITTING' as TransactionStatus,
-            retryCount: t.retryCount + 1,
-            updatedAt: nowStr,
-            errorMessage: null,
-            history: newHistory,
-            logs: newLogs
-          };
-        }
-        return t;
-      });
-      return { transactions: txs };
-    });
-
-    get().addAuditLog('RETRY_TRANSACTION', `Manually triggered adapter retry for transaction ${tx.referenceId}`);
-    get().updateMetrics();
-
-    // After 2.5 seconds, auto-complete this transaction for positive demo feedback!
-    setTimeout(() => {
-      const currentTx = get().transactions.find((t: any) => t.id === id);
-      if (currentTx && currentTx.status === 'ACCEPT_SUBMITTING') {
-        get().updateTransactionStatus(id, 'COMPLETED', 'Transaction completed successfully after operator retry.');
-        get().addAuditLog('AUTO_RESOLVE', `Transaction ${tx.referenceId} completed successfully after retry simulation`);
-      }
-    }, 2500);
+  updateTransactionStatus: async (id: string, status: TransactionStatus, message?: string) => {
+    // Cannot manually update status via frontend store anymore because truth comes from backend.
+    // So we fetch it instead.
+    await get().fetchTransactionByReference(id);
   },
 
-  forceCompleteTransaction: (id: string) => {
-    const tx = get().transactions.find((t: any) => t.id === id);
-    if (!tx) return;
-
-    get().updateTransactionStatus(id, 'COMPLETED', 'Operator force-completed this transaction (Bypassed adapter confirmation)');
-    get().addAuditLog('FORCE_COMPLETE', `Force-completed transaction ${tx.referenceId}`);
+  retryTransaction: async (referenceId: string) => {
+    const ok = await get().executeGatewayAction(referenceId, 'retry');
+    if (!ok) {
+      get().updateTransactionStatus(referenceId, 'ACCEPT_SUBMITTING', 'Retry initiated locally');
+    }
   },
 
-  forceFailTransaction: (id: string) => {
-    const tx = get().transactions.find((t: any) => t.id === id);
-    if (!tx) return;
-
-    get().updateTransactionStatus(id, 'FAILED', 'Operator force-failed this transaction. Flow terminated.');
-    get().addAuditLog('FORCE_FAIL', `Force-failed transaction ${tx.referenceId}`);
+  forceCompleteTransaction: async (referenceId: string) => {
+    await get().executeGatewayAction(referenceId, 'force_complete');
   },
 
-  sendToManualReview: (id: string) => {
-    const tx = get().transactions.find((t: any) => t.id === id);
-    if (!tx) return;
+  forceFailTransaction: async (referenceId: string) => {
+    await get().executeGatewayAction(referenceId, 'force_fail');
+  },
 
-    get().updateTransactionStatus(id, 'MANUAL_REVIEW', 'Sent to manual review queue for human auditor check.');
-    get().addAuditLog('SEND_TO_REVIEW', `Escalated transaction ${tx.referenceId} to manual review`);
+  sendToManualReview: async (referenceId: string) => {
+    await get().executeGatewayAction(referenceId, 'manual_review');
   },
 
   createTransaction: async (merchantId: string, amount: number, paymentMethod: string) => {
-    const response = await fetch('/api/transactions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ merchantId, amount, paymentMethod })
-    });
-
-    if (!response.ok) throw new Error('Failed to create transaction');
-    const newTx = await response.json();
-
-    set((state: any) => ({
-      transactions: [newTx, ...state.transactions].slice(0, 100)
-    }));
-
-    get().addAuditLog('CREATE_TRANSACTION', `Created simulated transaction ${newTx.referenceId} for amount IDR ${amount}`);
-    get().updateMetrics();
-
-    return newTx;
+    throw new Error('Simulation of transaction creation is disabled in API mode.');
   }
 });

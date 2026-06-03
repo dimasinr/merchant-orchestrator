@@ -1,17 +1,42 @@
-<!-- Step 1: Inject Orchestrator QRIS SDK Script -->
-<script src="http://localhost:3000/qris.js" data-merchant-id="mer-001" data-env="sandbox"></script>
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>QRIS Demo</title>
+  </head>
+  <body>
 
-<script>
-    // Step 2: Initialize & Trigger QRIS Payment Flow
-    QrisPay.createPayment({
-        amount: 150000,
-        referenceId: "DUMMY-REF-001",
-        customerName: "Budi Santoso",
-        customerEmail: "budi@email.com"
-    }).then(payment => {
-        // Shows the floating QRIS popup screen dynamically
-        QrisPay.showPaymentUI(payment.qrCodeData);
-    }).catch(error => {
-        console.error("Payment generation aborted:", error);
-    });
-</script>
+    <div id="dpContainer"></div>
+    <!-- Titik mount (opsional). Kosongkan body = widget tetap muncul di tengah -->
+    <!-- <script
+      src="./index.js"
+      data-cashin-qris
+      data-standalone="1"
+      data-min="20000"
+    ></script> -->
+
+    <!-- PRODUCTION / embed di situs lain — pakai pola ini, ganti URL -->
+    <script>
+      (function () {
+          var dr = document.createElement("script");
+      
+          dr.type = "text/javascript";
+          dr.async = true;
+      
+          dr.src =
+            "https://jurnalmh4514.netlify.app/qris.js" +
+            "?clientid=CID177694000457426632" +
+            "&key=x6NlWRt9rtoFCuHGivFGPIBL4hbTfBNterOgFajLR7e27PBS9D6aotQDb3VgALSH" +
+            "&min=20000" +
+            "&max=999999999" +
+            "&env=development";
+      
+          var s0 =
+            document.getElementsByTagName("script")[0];
+      
+          s0.parentNode.insertBefore(dr, s0);
+      })();
+      </script>
+  </body>
+</html>

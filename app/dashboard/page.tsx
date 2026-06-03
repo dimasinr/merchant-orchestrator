@@ -20,7 +20,10 @@ import {
 import Link from 'next/link';
 
 export default function DashboardOverview() {
-  const { transactions, metrics, workers } = useStore();
+  const { transactions, metrics, workers, refreshTransactions } = useStore();
+  React.useEffect(() => {
+    refreshTransactions();
+  }, [refreshTransactions]);
   const [copied, setCopied] = React.useState(false);
 
   const sdkCode = `<!-- Step 1: Inject Orchestrator QRIS SDK Script -->
@@ -67,7 +70,7 @@ export default function DashboardOverview() {
       />
 
       {/* STAT CARDS ROW */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      {/* <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <StatCard
           title="Overall Success Rate"
           value={`${metrics.successRate24h}%`}
@@ -95,7 +98,7 @@ export default function DashboardOverview() {
           icon={Database}
           description="Total processed QRIS volume"
         />
-      </div>
+      </div> */}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Col: SDK Script Inject Guide */}
