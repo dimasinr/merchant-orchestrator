@@ -51,11 +51,24 @@ export const settingsService = (set: any, get: any) => ({
       });
       await get().refreshTransactions();
       get().addAuditLog('USER_LOGIN', `Admin ${email} signed in`);
-      // Load merchants after authentication
       get().fetchMerchants().catch(() => undefined);
       return true;
     } catch (err) {
       const message = err instanceof ApiError ? err.message : 'Login failed';
+      set({ authError: message });
+      return false;
+    }
+  },
+
+  changePassword: async (oldPassword: string, newPassword: string) => {
+    const { token, user } = get();
+    if (!token || !user) return false;
+    try {
+      await authApi.adminChangePassword(token, { old_password: oldPassword, new_password: newPassword });
+      get().addAuditLog('CHANGE_PASSWORD', 'Admin password changed');
+      return true;
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Password change failed';
       set({ authError: message });
       return false;
     }
